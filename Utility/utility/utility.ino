@@ -10,15 +10,14 @@ namespace Pin
 
 typedef  struct
 {
-  float node1Pwr;
-  float node2Pwr;
+  uint16_t node1Pwr;
+  uint16_t node2Pwr;
 }pwr_t;
 
 //RTOS Handle(s)
 TaskHandle_t appTaskHandle;
 TaskHandle_t nodeTaskHandle;
 QueueHandle_t nodeToAppQueue;
-//QueueHandle_t nodeToMqttQueue;
 
 void setup() {
   // put your setup code here, to run once:
@@ -69,15 +68,15 @@ void ApplicationTask(void* pvParameters)
     float totalPwr = pwr.node1Pwr + pwr.node2Pwr;
     lcd.setCursor(0,0);
     lcd.print("Node 1: ");
-    lcd.print(pwr.node1Pwr);
+    lcd.print(pwr.node1Pwr / 100.0,2);
     lcd.print(" W");
     lcd.setCursor(0,1);
     lcd.print("Node 2: ");
-    lcd.print(pwr.node2Pwr);
+    lcd.print(pwr.node2Pwr / 100.0,2);
     lcd.print(" W");
     lcd.setCursor(0,2);
     lcd.print("Total PWR: ");
-    lcd.print(totalPwr);
+    lcd.print(totalPwr / 100.0);
     lcd.print(" W");
     lcd.setCursor(0,3);
     lcd.print("Source used: ");
@@ -93,6 +92,7 @@ void ApplicationTask(void* pvParameters)
 void NodeTask(void* pvParameters)
 {
   vTaskSuspend(NULL);
+  Serial.println("IPSS!!!!!");
   static HC12 hc12(&Serial2,Pin::setPin);
   static pwr_t pwr; 
   static uint8_t Node[NO_OF_NODES] = {HC12::Node1Addr,HC12::Node2Addr};
@@ -103,17 +103,15 @@ void NodeTask(void* pvParameters)
   };
   uint8_t node = (uint8_t)NODE1;
   uint32_t nodeTime = millis();
-  hc12.SetChannel(CHANNEL_20);
+  hc12.SetChannel(CHANNEL_18);
   
   while(1)
   {
-    if(millis() - nodeTime >= 1500)
+    if(millis() - nodeTime >= 1000)
     {
       hc12.EncodeData(HC12::QUERY,HC12::TxDataId::DATA_QUERY);
       hc12.EncodeData(Node[node],HC12::TxDataId::DEST_ADDR);
       hc12.TransmitData();
-      Serial.print("--Query sent to ");
-      Serial.println(node);
       node = (node + 1) % 2;
       nodeTime = millis();
     }
@@ -125,16 +123,30 @@ void NodeTask(void* pvParameters)
         if(hc12.DecodeData(HC12::RxDataId::SRC_ADDR) == HC12::Node1Addr)
         {
           Serial.println("Data Received from node 1");
-          pwr.node1Pwr = hc12.DecodeData(HC12::RxDataId::POWER) / 100.0;
-          xQueueSend(nodeToAppQueue,&pwr,0);
+          pwr.node1Pwr = hc12.DecodeData(HC12::RxDataId::POWER);
           Serial.println(pwr.node1Pwr);
+          if(xQueueSend(nodeToAppQueue,&pwr,0) == pdPASS)
+          {
+            Serial.println("--Data from Node 1 successfully sent to Application task");
+          }
+          else
+          {
+            Serial.println("--Failed to send data from Node 1 to Application Task");
+          }
         }
         else if(hc12.DecodeData(HC12::RxDataId::SRC_ADDR) == HC12::Node2Addr)
         {
           Serial.println("Data Received from node 2");
-          pwr.node2Pwr = hc12.DecodeData(HC12::RxDataId::POWER) / 100.0;
-          xQueueSend(nodeToAppQueue,&pwr,0);
+          pwr.node2Pwr = hc12.DecodeData(HC12::RxDataId::POWER);
           Serial.println(pwr.node2Pwr);
+          if(xQueueSend(nodeToAppQueue,&pwr,0) == pdPASS)
+          {
+            Serial.println("--Data from Node 2 successfully sent to Application task");
+          }
+          else
+          {
+            Serial.println("--Failed to send data from Node 2 to Application Task");
+          }
         }
       }   
     }

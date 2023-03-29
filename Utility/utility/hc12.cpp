@@ -82,18 +82,22 @@ void HC12::TransmitData(void)
 bool HC12::ReceivedData(void)
 {
   bool rxDone = false;
+ 
   while(port->available())
   {
     rxBuffer[rxDataCounter] = port->read();
+    Serial.print(rxBuffer[rxDataCounter]);
     rxDataCounter++;
   }
   if(rxDataCounter == BufferSize::RX)
   {
+    Serial.println();
     rxDataCounter = 0;
-    return rxDone;
+    rxDone = false;
   }
   else if(rxDataCounter == RX_DATA_EXPECTED_LEN)
   {
+    Serial.println();
     rxDataCounter = 0;
     rxDone = true;
   }

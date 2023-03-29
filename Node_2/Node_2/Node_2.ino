@@ -22,7 +22,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Energy Monitor");
   hc12Serial.listen();
-  hc12.SetChannel(CHANNEL_20);
+  hc12.SetChannel(CHANNEL_18);
 }
 
 void loop() {
