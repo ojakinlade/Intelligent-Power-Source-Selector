@@ -1,6 +1,8 @@
 #include <LiquidCrystal_I2C.h>
 #include "hc12.h"
 
+#define NO_OF_NODES 2
+
 namespace Pin
 {
   const uint8_t setPin = 15;
@@ -9,7 +11,7 @@ namespace Pin
 typedef  struct
 {
   float node1Pwr;
-  uint16_t node2Pwr;
+  float node2Pwr;
 }pwr_t;
 
 //RTOS Handle(s)
@@ -34,7 +36,7 @@ void setup() {
   }
   //Tasks
   xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
-  xTaskCreatePinnedToCore(ApplicationTask,"",25000,NULL,1,&appTaskHandle,1);  
+  xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,&appTaskHandle,1);  
 }
 
 void loop() {
@@ -64,7 +66,7 @@ void ApplicationTask(void* pvParameters)
     {
       Serial.println("--Application task received data from Node task\n");
     }
-    uint16_t totalPwr = pwr.node1Pwr + pwr.node2Pwr;
+    float totalPwr = pwr.node1Pwr + pwr.node2Pwr;
     lcd.setCursor(0,0);
     lcd.print("Node 1: ");
     lcd.print(pwr.node1Pwr);
@@ -93,20 +95,26 @@ void NodeTask(void* pvParameters)
   vTaskSuspend(NULL);
   static HC12 hc12(&Serial2,Pin::setPin);
   static pwr_t pwr; 
-  uint8_t node = HC12::Node1Addr;
+  static uint8_t Node[NO_OF_NODES] = {HC12::Node1Addr,HC12::Node2Addr};
+  enum Nodes
+  {
+    NODE1 = 0,
+    NODE2
+  };
+  uint8_t node = (uint8_t)NODE1;
   uint32_t nodeTime = millis();
   hc12.SetChannel(CHANNEL_20);
   
   while(1)
   {
-    if(millis() - nodeTime >= 1200)
+    if(millis() - nodeTime >= 1500)
     {
       hc12.EncodeData(HC12::QUERY,HC12::TxDataId::DATA_QUERY);
-      hc12.EncodeData(node,HC12::TxDataId::DEST_ADDR);
+      hc12.EncodeData(Node[node],HC12::TxDataId::DEST_ADDR);
       hc12.TransmitData();
       Serial.print("--Query sent to ");
       Serial.println(node);
-     // node = (node == MNI::node1Addr) ? MNI::node2Addr : MNI::node1Addr;
+      node = (node + 1) % 2;
       nodeTime = millis();
     }
     
@@ -124,7 +132,7 @@ void NodeTask(void* pvParameters)
         else if(hc12.DecodeData(HC12::RxDataId::SRC_ADDR) == HC12::Node2Addr)
         {
           Serial.println("Data Received from node 2");
-          pwr.node2Pwr = hc12.DecodeData(HC12::RxDataId::POWER);
+          pwr.node2Pwr = hc12.DecodeData(HC12::RxDataId::POWER) / 100.0;
           xQueueSend(nodeToAppQueue,&pwr,0);
           Serial.println(pwr.node2Pwr);
         }
