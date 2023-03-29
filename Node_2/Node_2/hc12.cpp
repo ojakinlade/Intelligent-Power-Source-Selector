@@ -86,6 +86,8 @@ bool HC12::ReceivedData(void)
     Serial.print(rxBuffer[rxDataCounter]);
     rxDataCounter++;
   }
+  //Check if the number of bytes received is that of AT command response or
+  //if it is data sent from the other node (6 bytes)
   if(rxDataCounter == BufferSize::RX || rxDataCounter == 6)
   {
     Serial.println();
