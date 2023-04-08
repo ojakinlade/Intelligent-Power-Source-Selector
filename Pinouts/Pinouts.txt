@@ -9,3 +9,4 @@ Node 2:
 Master:
 1. HC12: (TX: 16, RX: 17 --> UART2, SET: 15 Channel C018)
 2. LCD: (SDA: 21, SCL: 22)
+3. DS1302: (CLK: 5, IO: 4, RST: 2)
