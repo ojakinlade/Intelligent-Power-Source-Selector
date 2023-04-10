@@ -9,8 +9,8 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   Rtc.Begin();
-//  RtcDateTime initialTime = RtcDateTime(__DATE__,"13:30:00");
-//  Rtc.SetDateTime(initalTime);
+  RtcDateTime initialTime = RtcDateTime(__DATE__,"13:30:00");
+  Rtc.SetDateTime(initialTime);
   Serial.println();
 }
 

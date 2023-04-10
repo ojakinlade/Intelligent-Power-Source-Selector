@@ -2,13 +2,23 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LiquidCrystal_I2C.h>
+#include <ThreeWire.h>
+#include <RtcDS1302.h>
+#include "numeric_lib.h"
 #include "hc12.h"
+#include "IPSS.h"
 
-#define NO_OF_NODES 2
+#define NO_OF_NODES         2
+#define SOLAR_OUTPUT        20
+#define WIND_OUTPUT         30
+#define GENERATOR_OUTPUT    50
 
 namespace Pin
 {
   const uint8_t setPin = 15;
+  const uint8_t ioPin = 4;
+  const uint8_t sclkPin = 5;
+  const uint8_t cePin = 2;
 };
 
 typedef  struct
@@ -19,15 +29,22 @@ typedef  struct
 
 typedef struct
 {
-  uint32_t hour;
-  uint32_t minute;
+  uint8_t hour;
+  uint8_t minute;
 }tim_t;
+
+typedef struct
+{
+  char hour[3];
+  char minute[3];
+}timeChar_t;
 
 //RTOS Handle(s)
 TaskHandle_t appTaskHandle;
 TaskHandle_t nodeTaskHandle;
 TaskHandle_t webServerTaskHandle;
 QueueHandle_t nodeToAppQueue;
+QueueHandle_t webServerToAppQueue;
 
 AsyncWebServer server(80);
 
@@ -36,8 +53,6 @@ const char* pword = "spacetek";
 
 const char* PARAM_INPUT_1 = "HOUR";
 const char* PARAM_INPUT_2 = "MINUTE";
-
-tim_t Time;
 
 // HTML web page to handle  input fields (Hour, minute)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -60,24 +75,46 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
+void DisplayAlignedTwoDigits(LiquidCrystal_I2C& lcd,uint8_t digit)
+{
+  if(digit < 10)
+  {
+    lcd.print('0');
+    lcd.print(digit);
+  }
+  else
+  {
+    lcd.print(digit);
+  }
+}
+
 void setup() {
   // put your setup code here, to run once:
   setCpuFrequencyMhz(80);
   Serial.begin(115200);
   Serial.println("Energy monitor");
   nodeToAppQueue = xQueueCreate(1,sizeof(pwr_t));
+  webServerToAppQueue = xQueueCreate(1,sizeof(tim_t));
   if(nodeToAppQueue != NULL)
   {
-    Serial.println("Node-Application Queue successfully creeated");
+    Serial.println("Node-Application Queue successfully created");
   }
   else
   {
     Serial.println("Node-Application Queue creation failed");
   }
+  if(webServerToAppQueue != NULL)
+  {
+    Serial.println("WebServer-Application Queue successfully created");
+  }
+  else
+  {
+    Serial.println("WebServer-Application Queue creation failed");
+  }
   //Tasks
-  xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
-  xTaskCreatePinnedToCore(ApplicationTask,"",25000,NULL,1,&appTaskHandle,1);  
-  xTaskCreatePinnedToCore(WebServerTask,"",3000,NULL,1,&webServerTaskHandle,1);
+  xTaskCreatePinnedToCore(NodeTask,"",20000,NULL,1,&nodeTaskHandle,1);
+  xTaskCreatePinnedToCore(ApplicationTask,"",20000,NULL,1,&appTaskHandle,1);  
+  xTaskCreatePinnedToCore(WebServerTask,"",10000,NULL,1,&webServerTaskHandle,1);
 }
 
 void loop() {
@@ -87,13 +124,10 @@ void loop() {
 
 void WebServerTask(void* pvParameter)
 {
+  static tim_t Time;
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid,pword);
-  if(WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
-    Serial.println("WiFi connect Failed");
-    return;
-  }
+
   Serial.println();
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
@@ -114,6 +148,14 @@ void WebServerTask(void* pvParameter)
       inputMessage = "";
       inputMessage = request->getParam(PARAM_INPUT_1)->value();
       Time.hour = inputMessage.toInt();
+      if(xQueueSend(webServerToAppQueue,&Time,0) == pdPASS)
+      {
+        Serial.println("WebServer task sent data to Application Task successfully");
+      }
+      else
+      {
+        Serial.println("WebServer task failed to send data to Application Task");
+      }
       inputParam = PARAM_INPUT_1;
     }
     // GET input2 value on <ESP_IP>/get?input2=<inputMessage>
@@ -122,6 +164,14 @@ void WebServerTask(void* pvParameter)
       inputMessage = "";
       inputMessage = request->getParam(PARAM_INPUT_2)->value();
       Time.minute = inputMessage.toInt();
+      if(xQueueSend(webServerToAppQueue,&Time,0) == pdPASS)
+      {
+        Serial.println("WebServer task sent data to Application Task successfully");
+      }
+      else
+      {
+        Serial.println("WebServer task failed to send data to Application Task");
+      }
       inputParam = PARAM_INPUT_2;
     }
     else 
@@ -143,15 +193,29 @@ void WebServerTask(void* pvParameter)
 
   while(1)
   {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 }
 
 void ApplicationTask(void* pvParameters)
 {
   LiquidCrystal_I2C lcd(0x27,20,4);
-  static pwr_t pwr;
+  ThreeWire myWire(Pin::ioPin,Pin::sclkPin,Pin::cePin);
+  static IPSS ipss(SOLAR_OUTPUT,WIND_OUTPUT,GENERATOR_OUTPUT);
+  RtcDS1302<ThreeWire> Rtc(myWire);
 
+  static pwr_t pwr;
+  static tim_t tim;
+  static timeChar_t timChar;
+  char timeRecvd[20] = {0};
+
+  //[RTC Initialization]
+  Rtc.Begin();
+  //Set the current time
+//  RtcDateTime initialTime = RtcDateTime(__DATE__,"16:52:00");
+//  Rtc.SetDateTime(initialTime);
+
+  //[LCD Inititalization]
   lcd.init();
   lcd.backlight();
   lcd.setCursor(4,0);
@@ -176,20 +240,40 @@ void ApplicationTask(void* pvParameters)
 
   while(1)
   {
+    RtcDateTime timeNow = Rtc.GetDateTime();
     //Receive sensor Data from Node-Application Queue.
     if(xQueueReceive(nodeToAppQueue,&pwr,0) == pdPASS)
     {
       Serial.println("--Application task received data from Node task\n");
     }
+    //Receive time setting for RTC from WebServer-Application Queue.
+    if(xQueueReceive(webServerToAppQueue,&tim,0) == pdPASS)
+    {
+      Serial.println("--Application Task received data from Web Server task\n");
+      memset(timeRecvd,'\0',strlen(timeRecvd));
+      memset(timChar.hour,'\0',strlen(timChar.hour));
+      memset(timChar.minute,'\0',strlen(timChar.minute));
+      IntegerToString(tim.hour,timChar.hour);
+      IntegerToString(tim.minute,timChar.minute);
+      
+      strcat(timeRecvd,timChar.hour);
+      strcat(timeRecvd,":");
+      strcat(timeRecvd,timChar.minute);
+      strcat(timeRecvd,":00");
+      //Set the RTC with the received time
+      RtcDateTime receivedTime = RtcDateTime(__DATE__,timeRecvd);
+      Rtc.SetDateTime(receivedTime);  
+    }
     float totalPwr = pwr.node1Pwr + pwr.node2Pwr;
+    powerSource selectedSource = ipss.SelectPowerSource(timeNow.Hour(),totalPwr);
     switch(displayState)
     {
       case displayState1:
         lcd.setCursor(0,0);
         lcd.print("Time: ");
-        lcd.print(Time.hour);
+        DisplayAlignedTwoDigits(lcd,timeNow.Hour());
         lcd.print(":");
-        lcd.print(Time.minute);
+        DisplayAlignedTwoDigits(lcd,timeNow.Minute());
         lcd.setCursor(0,1);
         lcd.print("Node 1: ");
         lcd.print(pwr.node1Pwr / 100.0,2);
@@ -213,7 +297,19 @@ void ApplicationTask(void* pvParameters)
       case displayState2:
         lcd.setCursor(0,0);
         lcd.print("Source used: ");
-        lcd.print("xxxx");
+        lcd.setCursor(0,1);
+        switch(selectedSource)
+        {
+          case SOLAR:
+            lcd.print("SOLAR");
+          break;
+          case WIND:
+            lcd.print("WIND");
+          break;
+          case GENERATOR:
+            lcd.print("GENERATOR");
+          break;
+        }
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState1;
