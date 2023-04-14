@@ -1,13 +1,13 @@
 # depslib dependency file v1.0
-1680560434 source:c:\users\user\documents\c\intelligent power source selector\ipss.cpp
+1681484979 source:c:\users\user\documents\c\intelligent power source selector\ipss.cpp
 	<iostream>
 	"IPSS.h"
 
-1680555787 source:c:\users\user\documents\c\intelligent power source selector\main.cpp
+1681480613 source:c:\users\user\documents\c\intelligent power source selector\main.cpp
 	<iostream>
 	<stdint.h>
 	"IPSS.h"
 
-1680559700 c:\users\user\documents\c\intelligent power source selector\ipss.h
+1681484979 c:\users\user\documents\c\intelligent power source selector\ipss.h
 	<stdint.h>
 

@@ -3,8 +3,8 @@
 
 using namespace std;
 
-IPSS::IPSS(uint32_t solarOutput,uint32_t windOutput,
-           uint32_t generatorOutput)
+IPSS::IPSS(const uint16_t* solarOutput,const uint16_t* windOutput,
+           uint16_t generatorOutput)
 {
     _solarOutput = solarOutput;
     _windOutput = windOutput;
@@ -13,32 +13,89 @@ IPSS::IPSS(uint32_t solarOutput,uint32_t windOutput,
 
 bool IPSS::IsSolarAvailable(uint8_t currHour)
 {
-    return (currHour >= 13 && currHour <= 16);
+    return _solarOutput[currHour] > 0;
 }
 
 bool IPSS::IsWindAvailable(uint8_t currHour)
 {
-    bool isAvailable = false;
-    if((currHour >= 17 && currHour <= 23) || (currHour >= 0 && currHour <= 6))
+    return _windOutput[currHour] > 0;
+}
+
+bool IPSS::IsGeneratorAvailable(void)
+{
+    return _generatorOutput > 0;
+}
+
+bool IPSS::IsSolarSuitable(uint8_t currHour,float powerDemand)
+{
+   bool isSuitable = false;
+   if(IPSS::IsSolarAvailable(currHour) && _solarOutput[currHour] >= powerDemand)
+   {
+        isSuitable = true;
+   }
+   return isSuitable;
+}
+
+bool IPSS::IsWindSuitable(uint8_t currHour,float powerDemand)
+{
+   bool isSuitable = false;
+   if(IPSS::IsWindAvailable(currHour) && _windOutput[currHour] >= powerDemand)
+   {
+        isSuitable = true;
+   }
+   return isSuitable;
+}
+
+bool IPSS::IsSolarAndWindSuitable(uint8_t currHour,float powerDemand)
+{
+    bool isSuitable = false;
+    if(IPSS::IsSolarAvailable(currHour) && IPSS::IsWindAvailable(currHour))
     {
-        isAvailable = true;
+            if((_solarOutput[currHour] + _windOutput[currHour]) >= powerDemand)
+            {
+                isSuitable = true;
+            }
     }
-    return isAvailable;
+    return isSuitable;
 }
 
-bool IPSS::IsGeneratorAvailable(uint8_t currHour)
+bool IPSS::IsSolarAndGeneratorSuitable(uint8_t currHour,float powerDemand)
 {
-    return (currHour >= 7 && currHour <= 12);
+    bool isSuitable = false;
+    if(IPSS::IsSolarAvailable(currHour) && IPSS::IsGeneratorAvailable())
+    {
+            if((_solarOutput[currHour] + _generatorOutput) >= powerDemand)
+            {
+                isSuitable = true;
+            }
+    }
+    return isSuitable;
 }
 
-bool IPSS::IsSolarSuitable(float powerDemand)
+bool IPSS::IsWindAndGeneratorSuitable(uint8_t currHour,float powerDemand)
 {
-   return _solarOutput >= powerDemand;
+    bool isSuitable = false;
+    if(IPSS::IsWindAvailable(currHour) && IPSS::IsGeneratorAvailable())
+    {
+            if((_windOutput[currHour] + _generatorOutput) >= powerDemand)
+            {
+                isSuitable = true;
+            }
+    }
+    return isSuitable;
 }
 
-bool IPSS::IsWindSuitable(float powerDemand)
+bool IPSS::IsSolarWindAndGeneratorSuitable(uint8_t currHour,float powerDemand)
 {
-   return _windOutput >= powerDemand;
+    bool isSuitable = false;
+    if(IPSS::IsSolarAvailable(currHour) && IPSS::IsWindAvailable(currHour) && IPSS::IsGeneratorAvailable())
+    {
+            if((_solarOutput[currHour] + _windOutput[currHour] + _generatorOutput) >= powerDemand)
+            {
+                isSuitable = true;
+            }
+    }
+    return isSuitable;
 }
 
 bool IPSS::IsGeneratorSuitable(float powerDemand)
@@ -48,17 +105,28 @@ bool IPSS::IsGeneratorSuitable(float powerDemand)
 
 void IPSS::SelectPowerSource(uint8_t currHour,float powerDemand)
 {
-    if(IPSS::IsSolarAvailable(currHour) && IPSS::IsSolarSuitable(powerDemand))
+    if(IPSS::IsSolarSuitable(currHour,powerDemand))
     {
         cout << "Solar Selected!" << endl;
     }
-    else if(IPSS::IsWindAvailable(currHour) && IPSS::IsWindSuitable(powerDemand))
+    else if(IPSS::IsWindSuitable(currHour,powerDemand))
     {
         cout << "Wind Selected!" << endl;
     }
-    else if(IPSS::IsGeneratorAvailable(currHour) && IPSS::IsGeneratorSuitable(powerDemand))
+    else if(IPSS::IsSolarAndWindSuitable(currHour,powerDemand))
     {
-        cout << "Generator Selected!" << endl;
+        cout << "Solar and Wind Selected!" << endl;
     }
-
+    else if(IPSS::IsSolarAndGeneratorSuitable(currHour,powerDemand))
+    {
+        cout << "Solar and Generator Selected!" << endl;
+    }
+    else if(IPSS::IsWindAndGeneratorSuitable(currHour,powerDemand))
+    {
+        cout << "Wind and Generator Selected!" << endl;
+    }
+    else if(IPSS::IsSolarWindAndGeneratorSuitable(currHour,powerDemand))
+    {
+        cout << "Solar, Wind and Generator Selected!" << endl;
+    }
 }
