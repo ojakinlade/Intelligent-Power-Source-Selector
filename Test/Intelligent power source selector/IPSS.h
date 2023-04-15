@@ -9,6 +9,9 @@ class IPSS
        uint16_t _generatorOutput;
        const uint16_t* _solarOutput;
        const uint16_t* _windOutput;
+       uint16_t _solarCost;
+       uint16_t _windCost;
+       uint16_t _generatorCost;
        bool IsSolarAvailable(uint8_t currHour);
        bool IsWindAvailable(uint8_t currHour);
        bool IsGeneratorAvailable(void);
@@ -21,7 +24,8 @@ class IPSS
        bool IsGeneratorSuitable(float powerDemand);
 
    public:
-       IPSS(const uint16_t* solarOutput,const uint16_t* windOutput,uint16_t generatorOutput);
+       IPSS(const uint16_t* solarOutput,const uint16_t* windOutput,uint16_t generatorOutput,
+            const uint16_t solarCost,const uint16_t windCost,const uint16_t generatorCost);
        void SelectPowerSource(uint8_t currHour,float powerDemand);
 };
 
