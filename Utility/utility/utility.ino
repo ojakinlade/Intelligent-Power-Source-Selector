@@ -9,9 +9,20 @@
 #include "IPSS.h"
 
 #define NO_OF_NODES         2
-#define SOLAR_OUTPUT        20
-#define WIND_OUTPUT         30
 #define GENERATOR_OUTPUT    50
+
+const uint16_t SOLAR_OUTPUT[24] = {0,0,0,0,0,0,
+                                   10,15,20,25,30,35,
+                                   40,40,35,30,20,
+                                   10,0,0,0,0,0};
+const uint16_t WIND_OUTPUT[24] = {32,34,38,51,53,52,
+                                  50,36,35,34,32,33,
+                                  36,31,35,58,59,51,
+                                  52,50,56,53,38,34};
+
+const uint16_t GENERATOR_COST = 80;
+const uint16_t SOLAR_COST = 60;
+const uint16_t WIND_COST = 100;
 
 namespace Pin
 {
@@ -201,7 +212,8 @@ void ApplicationTask(void* pvParameters)
 {
   LiquidCrystal_I2C lcd(0x27,20,4);
   ThreeWire myWire(Pin::ioPin,Pin::sclkPin,Pin::cePin);
-  static IPSS ipss(SOLAR_OUTPUT,WIND_OUTPUT,GENERATOR_OUTPUT);
+  IPSS ipss(SOLAR_OUTPUT,WIND_OUTPUT,GENERATOR_OUTPUT,
+          SOLAR_COST,WIND_COST,GENERATOR_COST);
   RtcDS1302<ThreeWire> Rtc(myWire);
 
   static pwr_t pwr;
@@ -296,8 +308,31 @@ void ApplicationTask(void* pvParameters)
 
       case displayState2:
         lcd.setCursor(0,0);
-        lcd.print("Source used: ");
+        lcd.print("SOLAR:");
+        lcd.print(SOLAR_OUTPUT[timeNow.Hour()]);
+        lcd.print("W");
+        lcd.setCursor(10,0);
+        lcd.print("Cost:");
+        lcd.print("N");
+        lcd.print(SOLAR_COST);
         lcd.setCursor(0,1);
+        lcd.print("WIND:");
+        lcd.print(WIND_OUTPUT[timeNow.Hour()]);
+        lcd.print("W");
+        lcd.setCursor(10,1);
+        lcd.print("Cost:");
+        lcd.print("N");
+        lcd.print(WIND_COST);
+        lcd.setCursor(0,2);
+        lcd.print("GEN:");
+        lcd.print(GENERATOR_OUTPUT);
+        lcd.print("W");
+        lcd.setCursor(10,2);
+        lcd.print("Cost:");
+        lcd.print("N");
+        lcd.print(GENERATOR_COST);
+        lcd.setCursor(0,3);
+        lcd.print("SELECTED:");
         switch(selectedSource)
         {
           case SOLAR:
@@ -306,9 +341,21 @@ void ApplicationTask(void* pvParameters)
           case WIND:
             lcd.print("WIND");
           break;
-          case GENERATOR:
-            lcd.print("GENERATOR");
+          case SOLAR_WIND:
+            lcd.print("SLR+WND");
           break;
+          case SOLAR_GEN:
+            lcd.print("SLR+GEN");
+            break;
+          case WIND_GEN:
+            lcd.print("WND+GEN");
+            break;
+          case SOLAR_WIND_GEN:
+            lcd.print("SLR+WND+GEN");
+            break;
+          case INVALID:
+            lcd.print("INVALID");
+            break;
         }
         if(millis() - prevTime >= 4000)
         {
