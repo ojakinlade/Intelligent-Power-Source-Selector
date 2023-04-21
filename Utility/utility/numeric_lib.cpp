@@ -19,6 +19,13 @@ void IntegerToString(uint32_t integer,char* stringPtr)
     integerCopy /= 10;
     numOfDigits++;
   }
+  //Add '0' prefix if integer is less than 10
+  if(integer < 10)
+  {
+    stringPtr[0] = '0';
+    stringPtr[1] = '0' + (integer % 10);
+    return;
+  }
   while(integer > 0)
   {
     stringPtr[numOfDigits - 1] = '0' + (integer % 10);

@@ -161,6 +161,8 @@ void WebServerTask(void* pvParameter)
     {
       inputMessage = "";
       inputMessage = request->getParam(PARAM_INPUT_1)->value();
+      Serial.print("Hour: ");
+      Serial.println(inputMessage);
       Time.hour = inputMessage.toInt();
       if(xQueueSend(webServerToAppQueue,&Time,0) == pdPASS)
       {
@@ -177,7 +179,10 @@ void WebServerTask(void* pvParameter)
     {
       inputMessage = "";
       inputMessage = request->getParam(PARAM_INPUT_2)->value();
+      Serial.print("Minute: ");
+      Serial.println(inputMessage);
       Time.minute = inputMessage.toInt();
+      Serial.println(Time.minute);
       if(xQueueSend(webServerToAppQueue,&Time,0) == pdPASS)
       {
         Serial.println("WebServer task sent data to Application Task successfully");
@@ -273,13 +278,15 @@ void ApplicationTask(void* pvParameters)
       memset(timeRecvd,'\0',strlen(timeRecvd));
       memset(timChar.hour,'\0',strlen(timChar.hour));
       memset(timChar.minute,'\0',strlen(timChar.minute));
+
       IntegerToString(tim.hour,timChar.hour);
       IntegerToString(tim.minute,timChar.minute);
-      
+     
       strcat(timeRecvd,timChar.hour);
       strcat(timeRecvd,":");
       strcat(timeRecvd,timChar.minute);
       strcat(timeRecvd,":00");
+      Serial.println(timeRecvd);
       //Set the RTC with the received time
       RtcDateTime receivedTime = RtcDateTime(__DATE__,timeRecvd);
       Rtc.SetDateTime(receivedTime);  
