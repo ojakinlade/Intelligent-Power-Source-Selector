@@ -6,9 +6,11 @@
 */
 void IntegerToString(uint32_t integer,char* stringPtr)
 {
+  //Adds '0' prefix before '0', hence strinPtr is '0'
   if(integer == 0)
   {  
     stringPtr[0] = '0';
+    stringPtr[1] = '0';
     return;
   }
   uint32_t integerCopy = integer;
