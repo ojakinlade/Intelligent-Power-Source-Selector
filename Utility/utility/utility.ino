@@ -12,17 +12,17 @@
 #define GENERATOR_OUTPUT    50
 
 const uint16_t SOLAR_OUTPUT[24] = {0,0,0,0,0,0,
-                                   10,15,20,25,30,35,
-                                   40,40,35,30,20,
-                                   10,0,0,0,0,0};
-const uint16_t WIND_OUTPUT[24] = {32,34,38,51,53,52,
-                                  50,36,35,34,32,33,
-                                  36,31,35,58,59,51,
-                                  52,50,56,53,38,34};
+                                   20,30,35,40,40,45,
+                                   50,50,50,50,40,30,
+                                   20,0,0,0,0,0};
+const uint16_t WIND_OUTPUT[24] = {20,20,25,35,40,45,
+                                 50,50,50,50,45,40,
+                                 35,30,30,35,40,50,
+                                 50,50,50,45,30,20};
 
-const uint16_t GENERATOR_COST = 80;
-const uint16_t SOLAR_COST = 60;
-const uint16_t WIND_COST = 100;
+const uint16_t GENERATOR_COST = 100;
+const uint16_t SOLAR_COST = 40;
+const uint16_t WIND_COST = 60;
 
 namespace Pin
 {
@@ -30,6 +30,9 @@ namespace Pin
   const uint8_t ioPin = 4;
   const uint8_t sclkPin = 5;
   const uint8_t cePin = 2;
+  const uint8_t solarLedPin = 12;
+  const uint8_t windLedPin = 13;
+  const uint8_t generatorLedPin = 14;
 };
 
 typedef  struct
@@ -227,6 +230,11 @@ void ApplicationTask(void* pvParameters)
 //  RtcDateTime initialTime = RtcDateTime(__DATE__,"16:52:00");
 //  Rtc.SetDateTime(initialTime);
 
+  //[LED Pin Initialization]
+  pinMode(Pin::solarLedPin,OUTPUT);
+  pinMode(Pin::windLedPin,OUTPUT);
+  pinMode(Pin::generatorLedPin,OUTPUT);
+
   //[LCD Inititalization]
   lcd.init();
   lcd.backlight();
@@ -277,7 +285,45 @@ void ApplicationTask(void* pvParameters)
       Rtc.SetDateTime(receivedTime);  
     }
     float totalPwr = pwr.node1Pwr + pwr.node2Pwr;
-    powerSource selectedSource = ipss.SelectPowerSource(timeNow.Hour(),totalPwr);
+    powerSource selectedSource = ipss.SelectPowerSource(timeNow.Hour(),(totalPwr/100.0));
+    switch(selectedSource)
+    {
+      case SOLAR:
+        digitalWrite(Pin::solarLedPin,HIGH);
+        digitalWrite(Pin::windLedPin,LOW);
+        digitalWrite(Pin::generatorLedPin,LOW);
+      break;
+      case WIND:
+        digitalWrite(Pin::solarLedPin,LOW);
+        digitalWrite(Pin::windLedPin,HIGH);
+        digitalWrite(Pin::generatorLedPin,LOW);
+      break;
+      case SOLAR_WIND:
+        digitalWrite(Pin::solarLedPin,HIGH);
+        digitalWrite(Pin::windLedPin,HIGH);
+        digitalWrite(Pin::generatorLedPin,LOW);
+      break;
+      case SOLAR_GEN:
+        digitalWrite(Pin::solarLedPin,HIGH);
+        digitalWrite(Pin::windLedPin,LOW);
+        digitalWrite(Pin::generatorLedPin,HIGH);
+        break;
+      case WIND_GEN:
+        digitalWrite(Pin::solarLedPin,LOW);
+        digitalWrite(Pin::windLedPin,HIGH);
+        digitalWrite(Pin::generatorLedPin,HIGH);
+        break;
+      case SOLAR_WIND_GEN:
+        digitalWrite(Pin::solarLedPin,HIGH);
+        digitalWrite(Pin::windLedPin,HIGH);
+        digitalWrite(Pin::generatorLedPin,HIGH);
+        break;
+      case INVALID:
+        digitalWrite(Pin::solarLedPin,LOW);
+        digitalWrite(Pin::windLedPin,LOW);
+        digitalWrite(Pin::generatorLedPin,LOW);
+        break;
+    }
     switch(displayState)
     {
       case displayState1:
