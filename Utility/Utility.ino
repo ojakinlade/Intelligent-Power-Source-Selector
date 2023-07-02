@@ -62,8 +62,8 @@ QueueHandle_t webServerToAppQueue;
 
 AsyncWebServer server(80);
 
-const char* ssid = "AkJoe";
-const char* pword = "spacetek";
+const char* ssid = "ipss";
+const char* pword = "selector";
 
 const char* PARAM_INPUT_1 = "HOUR";
 const char* PARAM_INPUT_2 = "MINUTE";
