@@ -1,13 +1,13 @@
-% Example code for generating simulated wind speed data
+% Generate simulated wind speed data
 num_samples = 365 * 24;  % Number of samples for one year (assuming hourly data)
 shape_parameter = 2;    % Adjust as needed
 scale_parameter = 6;   % Adjust as needed
 
 simulated_wind_speed = wblrnd(scale_parameter, shape_parameter, [num_samples, 1]);
 
-% Define a wind turbine power curve function (example curve)
-turbine_power_curve = @(wind_speed) (0.5 * wind_speed.^3);  % Example power curve
-% Assuming simulated_wind_speed is your generated wind speed data
+% Define a wind turbine power curve function
+turbine_power_curve = @(wind_speed) (0.5 * wind_speed.^3);  % power curve
+% Assuming simulated_wind_speed is the generated wind speed data
 
 % Define the number of hours in a day
 hours_per_day = 24;
